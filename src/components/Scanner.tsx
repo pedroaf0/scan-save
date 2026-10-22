@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { parseAddress } from "@/lib/parse-address";
+import { parseCode } from "@/lib/parse-address";
 
 type Row = { code: string; format: string; time: string };
 const KEY = "barcodes";
