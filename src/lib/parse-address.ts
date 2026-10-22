@@ -9,10 +9,10 @@ export function parseAddress(text: string): ParsedAddress {
   // vCard / MECARD address
   const adr = t.match(/^ADR[^:]*:(.*)$/im) || t.match(/ADR:([^;]*(?:;[^;]+)*?);;/);
   if (adr) {
-    const parts = adr[1].split(";").map((p) => p.trim()).filter(Boolean);
+    const parts = (adr[1] ?? "").split(";").map((p) => p.trim()).filter(Boolean);
     const cepPart = parts.join(" ").match(/\b(\d{5})-?(\d{3})\b/);
     return {
-      cep: cepPart ? fmt(cepPart[1] + cepPart[2]) : "",
+      cep: cepPart ? fmt(`${cepPart[1]}${cepPart[2]}`) : "",
       endereco: parts.filter((p) => !/^\d{5}-?\d{3}$/.test(p)).join(", "),
     };
   }
@@ -29,7 +29,7 @@ export function parseAddress(text: string): ParsedAddress {
     const street = t.match(/\b(Rua|R\.|Av\.?|Avenida|Travessa|Tv\.|Alameda|Al\.|Rodovia|Estrada|Praça|Largo)\s[^\n]*/i);
     let endereco = street ? street[0] : "";
     endereco = endereco.replace(/,?\s*CEP[:\s]*\d{5}-?\d{3}.*/i, "").replace(/\s*\d{5}-\d{3}.*/, "").trim();
-    return { cep: fmt(m[1] + m[2]), endereco };
+    return { cep: fmt(`${m[1]}${m[2]}`), endereco };
   }
 
   return { cep: "", endereco: "" };
