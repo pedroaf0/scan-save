@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { parseAddress } from "@/lib/parse-address";
 
 type Row = { code: string; format: string; time: string };
 const KEY = "barcodes";
@@ -42,8 +43,10 @@ export function Scanner() {
   }
   function stop() { controlsRef.current?.stop(); controlsRef.current = null; setScanning(false); }
 
+  const full = rows.map((r) => ({ ...r, ...parseAddress(r.code) }));
+  const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const toCsv = () =>
-    ["codigo,data_hora", ...rows.map((r) => `"${r.code.replace(/"/g, '""')}","${r.time}"`)].join("\n");
+    ["codigo,cep,endereco,data_hora", ...full.map((r) => [r.code, r.cep, r.endereco, r.time].map(q).join(","))].join("\n");
   function download() {
     const url = URL.createObjectURL(new Blob(["\ufeff" + toCsv()], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = "codigos.csv"; a.click();
@@ -56,13 +59,13 @@ export function Scanner() {
     doc.text("Códigos de barras", 14, 15);
     autoTable(doc, {
       startY: 22,
-      head: [["#", "Código", "Data/hora"]],
-      body: rows.map((r, i) => [String(rows.length - i), r.code, r.time]),
+      head: [["#", "Código", "CEP", "Endereço", "Data/hora"]],
+      body: full.map((r, i) => [String(rows.length - i), r.code, r.cep, r.endereco, r.time]),
     });
     doc.save("codigos.pdf");
   }
   async function copy() {
-    await navigator.clipboard.writeText(rows.map((r) => r.code).join("\n"));
+    await navigator.clipboard.writeText(full.map((r) => [r.code, r.cep, r.endereco].filter(Boolean).join("\t")).join("\n"));
     setMsg("Códigos copiados!");
   }
 
@@ -85,17 +88,19 @@ export function Scanner() {
       </div>
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
       <table className="w-full text-left text-sm">
-        <thead><tr className="border-b"><th className="py-2">#</th><th>Código</th><th>Data/hora</th><th></th></tr></thead>
+        <thead><tr className="border-b"><th className="py-2">#</th><th>Código</th><th>CEP</th><th>Endereço</th><th>Data/hora</th><th></th></tr></thead>
         <tbody>
-          {rows.map((r, i) => (
+          {full.map((r, i) => (
             <tr key={i} className="border-b">
               <td className="py-2">{rows.length - i}</td>
               <td className="font-mono break-all">{r.code}</td>
+              <td className="whitespace-nowrap">{r.cep || "—"}</td>
+              <td>{r.endereco || "—"}</td>
               <td className="text-muted-foreground">{r.time}</td>
               <td><button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-destructive">✕</button></td>
             </tr>
           ))}
-          {!rows.length && <tr><td colSpan={4} className="py-6 text-center text-muted-foreground">Nenhum código lido ainda.</td></tr>}
+          {!rows.length && <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">Nenhum código lido ainda.</td></tr>}
         </tbody>
       </table>
     </main>
