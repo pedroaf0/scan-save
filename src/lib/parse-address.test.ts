@@ -11,10 +11,10 @@ describe("parseCode", () => {
     expect(r.campos).toMatchObject({ UF: "RS", "CNPJ emitente": "32.442.602/0001-95", Série: "2", "Nota Fiscal": "000617" });
   });
   it("Correios tracking", () => {
-    expect(parseCode("AP641282545BR").campos.Rastreio).toBe("AP641282545BR");
+    expect(parseCode("AP641282545BR").campos["Rastreio"]).toBe("AP641282545BR");
   });
   it("Correios CEP barcode", () => {
-    expect(parseCode("04549020").campos.CEP).toBe("04549-020");
+    expect(parseCode("04549020").campos["CEP"]).toBe("04549-020");
   });
   it("Shipment ID", () => {
     expect(parseCode("14652900000556").campos["Shipment ID"]).toBe("14652900000556");
