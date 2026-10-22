@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- The scanner UI lives in src/components/Scanner.tsx, shared by the TanStack route and the standalone static build (static/ + vite.static.config.ts → docs/, run `bun run build:static`); why: docs/ is committed and served by GitHub Pages without Actions.
