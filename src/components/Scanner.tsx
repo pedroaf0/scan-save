@@ -43,10 +43,13 @@ export function Scanner() {
   }
   function stop() { controlsRef.current?.stop(); controlsRef.current = null; setScanning(false); }
 
-  const full = rows.map((r) => ({ ...r, ...parseAddress(r.code) }));
+  const full = rows.map((r) => ({ ...r, ...parseCode(r.code) }));
+  const keys = [...new Set(full.flatMap((r) => Object.keys(r.campos)))];
+  const dados = (c: Record<string, string>) => Object.entries(c).map(([k, v]) => `${k}: ${v}`).join("; ");
   const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const toCsv = () =>
-    ["codigo,cep,endereco,data_hora", ...full.map((r) => [r.code, r.cep, r.endereco, r.time].map(q).join(","))].join("\n");
+    [["codigo", "tipo", ...keys, "data_hora"].map(q).join(","),
+     ...full.map((r) => [r.code, r.tipo, ...keys.map((k) => r.campos[k] ?? ""), r.time].map(q).join(","))].join("\n");
   function download() {
     const url = URL.createObjectURL(new Blob(["\ufeff" + toCsv()], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = "codigos.csv"; a.click();
@@ -59,19 +62,20 @@ export function Scanner() {
     doc.text("Códigos de barras", 14, 15);
     autoTable(doc, {
       startY: 22,
-      head: [["#", "Código", "CEP", "Endereço", "Data/hora"]],
-      body: full.map((r, i) => [String(rows.length - i), r.code, r.cep, r.endereco, r.time]),
+      styles: { fontSize: 8 },
+      head: [["#", "Código", "Tipo", "Dados", "Data/hora"]],
+      body: full.map((r, i) => [String(rows.length - i), r.code, r.tipo, Object.entries(r.campos).map(([k, v]) => `${k}: ${v}`).join("\n"), r.time]),
     });
     doc.save("codigos.pdf");
   }
   async function copy() {
-    await navigator.clipboard.writeText(full.map((r) => [r.code, r.cep, r.endereco].filter(Boolean).join("\t")).join("\n"));
+    await navigator.clipboard.writeText(full.map((r) => [r.code, r.tipo, dados(r.campos)].filter(Boolean).join("\t")).join("\n"));
     setMsg("Códigos copiados!");
   }
 
   const btn = "rounded-md px-4 py-2 text-sm font-medium disabled:opacity-40";
   return (
-    <main className="mx-auto max-w-2xl space-y-4 p-4">
+    <main className="mx-auto max-w-3xl space-y-4 p-4">
       <h1 className="text-2xl font-bold">Leitor de Códigos de Barras</h1>
       <div className="overflow-hidden rounded-lg bg-muted">
         <video ref={videoRef} className={scanning ? "aspect-video w-full object-cover" : "hidden"} muted playsInline />
@@ -88,14 +92,18 @@ export function Scanner() {
       </div>
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
       <table className="w-full text-left text-sm">
-        <thead><tr className="border-b"><th className="py-2">#</th><th>Código</th><th>CEP</th><th>Endereço</th><th>Data/hora</th><th></th></tr></thead>
+        <thead><tr className="border-b"><th className="py-2">#</th><th>Código</th><th>Tipo</th><th>Dados</th><th>Data/hora</th><th></th></tr></thead>
         <tbody>
           {full.map((r, i) => (
-            <tr key={i} className="border-b">
+            <tr key={i} className="border-b align-top">
               <td className="py-2">{rows.length - i}</td>
-              <td className="font-mono break-all">{r.code}</td>
-              <td className="whitespace-nowrap">{r.cep || "—"}</td>
-              <td>{r.endereco || "—"}</td>
+              <td className="max-w-[10rem] font-mono text-xs break-all">{r.code}</td>
+              <td className="whitespace-nowrap">{r.tipo}</td>
+              <td>
+                {Object.keys(r.campos).length
+                  ? Object.entries(r.campos).map(([k, v]) => <div key={k}><span className="text-muted-foreground">{k}:</span> {v}</div>)
+                  : "—"}
+              </td>
               <td className="text-muted-foreground">{r.time}</td>
               <td><button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-destructive">✕</button></td>
             </tr>
