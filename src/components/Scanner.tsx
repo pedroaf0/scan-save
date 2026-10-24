@@ -405,6 +405,7 @@ export function Scanner() {
               <th className="py-2 px-2">Pedido</th>
               <th className="py-2 px-2">Loja</th>
               <th className="py-2 px-2">Destinatário</th>
+              <th className="py-2 px-2">Endereço</th>
               <th className="py-2 px-2">Nota Fiscal</th>
               <th className="py-2 px-2">ShipmentID</th>
               <th className="py-2 px-2">Volume</th>
@@ -427,6 +428,7 @@ export function Scanner() {
                 <td className="py-2 px-2 font-medium">{r.orderFields['Pedido'] || r.campos['Pedido'] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Loja'] || "—"}</td>
                 <td className="py-2 px-2 max-w-[10rem]">{r.orderFields['Destinatário'] || "—"}</td>
+                <td className="py-2 px-2 max-w-[14rem] text-xs">{r.orderFields["Endereço"] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Nota Fiscal'] || "—"}</td>
                 <td className="py-2 px-2 font-mono text-xs">{r.orderFields['ShipmentID'] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Volume'] || "—"}</td>
@@ -459,7 +461,7 @@ export function Scanner() {
         <div className="mt-2 text-sm text-muted-foreground space-y-2">
           <p><strong>Fluxo de uso:</strong></p>
           <ol className="list-decimal ml-4 space-y-1">
-            <li>Clique em "Importar ZPL" e selecione o arquivo com as etiquetas</li>
+            <li>Clique em "Importar ZPL ou PDF" e selecione o arquivo com as etiquetas</li>
             <li>O sistema extrai os pedidos e cria um índice pelos códigos de barras (ShipmentID)</li>
             <li>Clique em "Iniciar câmera" e aponte para o código de barras do pacote</li>
             <li>O pedido correspondente é exibido automaticamente na tabela com status ✓</li>
