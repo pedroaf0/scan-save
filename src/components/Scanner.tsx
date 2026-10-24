@@ -282,12 +282,12 @@ export function Scanner() {
       body: full.map((r, i) => [
         String(rows.length - i),
         r.code,
-        r.tipo,
         r.matchStatus === 'matched' ? '✓' : r.matchStatus === 'duplicate' ? '⚠' : '✗',
         r.orderFields['Pedido'] || r.campos['Pedido'] || "",
-        r.orderFields['Loja'] || "",
+        r.orderFields['Nota Fiscal'] || r.campos['Nota Fiscal'] || "",
+        r.orderFields['Serviço'] || "",
         r.orderFields['Destinatário'] || "",
-        r.orderFields['Nota Fiscal'] || "",
+        r.orderFields['Endereço'] || "",
         r.time,
       ]),
     });
@@ -297,15 +297,12 @@ export function Scanner() {
   async function copy() {
     await navigator.clipboard.writeText(
       full.map((r) => [
-        r.code, 
-        r.tipo, 
+        r.code,
+        r.tipo,
         r.matchStatus,
-        r.orderFields['Pedido'] || "",
-        r.orderFields['Loja'] || "",
-        r.orderFields['Destinatário'] || "",
-        r.orderFields['Nota Fiscal'] || "",
+        ...allKeys.map((k) => r.orderFields[k] || r.campos[k] || ""),
         r.time,
-      ].filter(Boolean).join("\t")).join("\n")
+      ].join("\t")).join("\n")
     );
     setMsg("Leituras copiadas!");
     setTimeout(() => setMsg(""), 2000);
