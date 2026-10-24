@@ -101,7 +101,10 @@ export function Scanner() {
     let matchedOrder: ZPLOrder | undefined;
     
     if (importedOrders?.index) {
-      const found = findOrderByCode(importedOrders.index, code);
+      const p = parseCode(code).campos;
+      const found = findOrderByCode(importedOrders.index, code)
+        ?? (p["Rastreio"] ? findOrderByCode(importedOrders.index, p["Rastreio"]) : null)
+        ?? (p["Nota Fiscal"] ? findOrderByCode(importedOrders.index, `NF:${p["Nota Fiscal"]}`) : null);
       if (found) {
         // Check for duplicate scan of same order
         const alreadyScanned = rows.some(r => r.matchedOrder?.barcode === found.barcode);
@@ -152,11 +155,17 @@ export function Scanner() {
     setImportProgress({ stage: "Lendo arquivo...", progress: 10 });
     
     try {
-      const text = await file.text();
-      setImportProgress({ stage: "Interpretando etiquetas ZPL...", progress: 30 });
-      
-      // Parse ZPL content
-      const result = parseZPL(text);
+      let result: ZPLParseResult;
+      if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+        setImportProgress({ stage: "Lendo etiquetas do PDF...", progress: 30 });
+        const { parsePdfLabels } = await import("@/lib/parse-pdf-labels");
+        const orders = await parsePdfLabels(file);
+        result = { orders, errors: [], warnings: orders.length ? [] : ["Nenhuma etiqueta encontrada no PDF"] };
+      } else {
+        const text = await file.text();
+        setImportProgress({ stage: "Interpretando etiquetas ZPL...", progress: 30 });
+        result = parseZPL(text);
+      }
       setImportProgress({ stage: "Criando índice de busca...", progress: 70 });
       
       // Create search index
@@ -227,11 +236,14 @@ export function Scanner() {
       "Destinatário": r.matchedOrder.destinatario,
       "Endereço": r.matchedOrder.enderecoDestinatario,
       "Remetente": r.matchedOrder.remetente,
+      "Endereço remetente": r.matchedOrder.enderecoRemetente,
+      "Serviço": r.matchedOrder.dataEmissao ?? "",
+      "Contrato": r.matchedOrder.protocolo ?? "",
     } : {} as Record<string, string>,
   }));
 
   // Collect all possible columns for CSV export
-  const baseKeys = ["Pedido", "Loja", "Loja Virtual", "Nota Fiscal", "ShipmentID", "Volume", "Destinatário", "Endereço", "Remetente"];
+  const baseKeys = ["Pedido", "Loja", "Loja Virtual", "Nota Fiscal", "ShipmentID", "Volume", "Destinatário", "Endereço", "Remetente", "Endereço remetente", "Serviço", "Contrato"];
   const parsedKeys = [...new Set(full.flatMap((r) => Object.keys(r.campos)))];
   const allKeys = [...baseKeys, ...parsedKeys.filter(k => !baseKeys.includes(k))];
   
@@ -266,16 +278,16 @@ export function Scanner() {
     autoTable(doc, {
       startY: importedOrders ? 28 : 22,
       styles: { fontSize: 7 },
-      head: [["#", "Código", "Tipo", "Status", "Pedido", "Loja", "Destinatário", "Nota Fiscal", "Data/hora"]],
+      head: [["#", "Código", "Status", "Pedido", "NF", "Serviço", "Destinatário", "Endereço", "Data/hora"]],
       body: full.map((r, i) => [
         String(rows.length - i),
         r.code,
-        r.tipo,
         r.matchStatus === 'matched' ? '✓' : r.matchStatus === 'duplicate' ? '⚠' : '✗',
         r.orderFields['Pedido'] || r.campos['Pedido'] || "",
-        r.orderFields['Loja'] || "",
+        r.orderFields['Nota Fiscal'] || r.campos['Nota Fiscal'] || "",
+        r.orderFields['Serviço'] || "",
         r.orderFields['Destinatário'] || "",
-        r.orderFields['Nota Fiscal'] || "",
+        r.orderFields['Endereço'] || "",
         r.time,
       ]),
     });
@@ -285,15 +297,12 @@ export function Scanner() {
   async function copy() {
     await navigator.clipboard.writeText(
       full.map((r) => [
-        r.code, 
-        r.tipo, 
+        r.code,
+        r.tipo,
         r.matchStatus,
-        r.orderFields['Pedido'] || "",
-        r.orderFields['Loja'] || "",
-        r.orderFields['Destinatário'] || "",
-        r.orderFields['Nota Fiscal'] || "",
+        ...allKeys.map((k) => r.orderFields[k] || r.campos[k] || ""),
         r.time,
-      ].filter(Boolean).join("\t")).join("\n")
+      ].join("\t")).join("\n")
     );
     setMsg("Leituras copiadas!");
     setTimeout(() => setMsg(""), 2000);
@@ -308,8 +317,8 @@ export function Scanner() {
         <h1 className="text-2xl font-bold">Leitor de Códigos de Barras</h1>
         <div className="flex gap-2">
           <label className={`${btn} bg-primary text-primary-foreground cursor-pointer`}>
-            Importar ZPL
-            <input ref={fileInputRef} type="file" accept=".zpl,.txt" className="hidden" onChange={handleFileChange} />
+            Importar ZPL ou PDF
+            <input ref={fileInputRef} type="file" accept=".zpl,.txt,.pdf,application/pdf" className="hidden" onChange={handleFileChange} />
           </label>
           {importedOrders && (
             <button onClick={clearImportedOrders} className={`${btn} border text-destructive`}>
@@ -396,6 +405,7 @@ export function Scanner() {
               <th className="py-2 px-2">Pedido</th>
               <th className="py-2 px-2">Loja</th>
               <th className="py-2 px-2">Destinatário</th>
+              <th className="py-2 px-2">Endereço</th>
               <th className="py-2 px-2">Nota Fiscal</th>
               <th className="py-2 px-2">ShipmentID</th>
               <th className="py-2 px-2">Volume</th>
@@ -418,6 +428,7 @@ export function Scanner() {
                 <td className="py-2 px-2 font-medium">{r.orderFields['Pedido'] || r.campos['Pedido'] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Loja'] || "—"}</td>
                 <td className="py-2 px-2 max-w-[10rem]">{r.orderFields['Destinatário'] || "—"}</td>
+                <td className="py-2 px-2 max-w-[14rem] text-xs">{r.orderFields["Endereço"] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Nota Fiscal'] || "—"}</td>
                 <td className="py-2 px-2 font-mono text-xs">{r.orderFields['ShipmentID'] || "—"}</td>
                 <td className="py-2 px-2">{r.orderFields['Volume'] || "—"}</td>
@@ -450,7 +461,7 @@ export function Scanner() {
         <div className="mt-2 text-sm text-muted-foreground space-y-2">
           <p><strong>Fluxo de uso:</strong></p>
           <ol className="list-decimal ml-4 space-y-1">
-            <li>Clique em "Importar ZPL" e selecione o arquivo com as etiquetas</li>
+            <li>Clique em "Importar ZPL ou PDF" e selecione o arquivo com as etiquetas</li>
             <li>O sistema extrai os pedidos e cria um índice pelos códigos de barras (ShipmentID)</li>
             <li>Clique em "Iniciar câmera" e aponte para o código de barras do pacote</li>
             <li>O pedido correspondente é exibido automaticamente na tabela com status ✓</li>
