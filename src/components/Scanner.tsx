@@ -236,11 +236,14 @@ export function Scanner() {
       "Destinatário": r.matchedOrder.destinatario,
       "Endereço": r.matchedOrder.enderecoDestinatario,
       "Remetente": r.matchedOrder.remetente,
+      "Endereço remetente": r.matchedOrder.enderecoRemetente,
+      "Serviço": r.matchedOrder.dataEmissao ?? "",
+      "Contrato": r.matchedOrder.protocolo ?? "",
     } : {} as Record<string, string>,
   }));
 
   // Collect all possible columns for CSV export
-  const baseKeys = ["Pedido", "Loja", "Loja Virtual", "Nota Fiscal", "ShipmentID", "Volume", "Destinatário", "Endereço", "Remetente"];
+  const baseKeys = ["Pedido", "Loja", "Loja Virtual", "Nota Fiscal", "ShipmentID", "Volume", "Destinatário", "Endereço", "Remetente", "Endereço remetente", "Serviço", "Contrato"];
   const parsedKeys = [...new Set(full.flatMap((r) => Object.keys(r.campos)))];
   const allKeys = [...baseKeys, ...parsedKeys.filter(k => !baseKeys.includes(k))];
   
@@ -275,7 +278,7 @@ export function Scanner() {
     autoTable(doc, {
       startY: importedOrders ? 28 : 22,
       styles: { fontSize: 7 },
-      head: [["#", "Código", "Tipo", "Status", "Pedido", "Loja", "Destinatário", "Nota Fiscal", "Data/hora"]],
+      head: [["#", "Código", "Status", "Pedido", "NF", "Serviço", "Destinatário", "Endereço", "Data/hora"]],
       body: full.map((r, i) => [
         String(rows.length - i),
         r.code,
@@ -317,8 +320,8 @@ export function Scanner() {
         <h1 className="text-2xl font-bold">Leitor de Códigos de Barras</h1>
         <div className="flex gap-2">
           <label className={`${btn} bg-primary text-primary-foreground cursor-pointer`}>
-            Importar ZPL
-            <input ref={fileInputRef} type="file" accept=".zpl,.txt" className="hidden" onChange={handleFileChange} />
+            Importar ZPL ou PDF
+            <input ref={fileInputRef} type="file" accept=".zpl,.txt,.pdf,application/pdf" className="hidden" onChange={handleFileChange} />
           </label>
           {importedOrders && (
             <button onClick={clearImportedOrders} className={`${btn} border text-destructive`}>
