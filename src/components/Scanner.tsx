@@ -160,7 +160,7 @@ export function Scanner() {
         setImportProgress({ stage: "Lendo etiquetas do PDF...", progress: 30 });
         const { parsePdfLabels } = await import("@/lib/parse-pdf-labels");
         const orders = await parsePdfLabels(file);
-        result = { orders, errors: orders.length ? [] : ["Nenhuma etiqueta encontrada no PDF"], warnings: [] };
+        result = { orders, errors: [], warnings: orders.length ? [] : ["Nenhuma etiqueta encontrada no PDF"] };
       } else {
         const text = await file.text();
         setImportProgress({ stage: "Interpretando etiquetas ZPL...", progress: 30 });
