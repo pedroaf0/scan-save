@@ -101,7 +101,10 @@ export function Scanner() {
     let matchedOrder: ZPLOrder | undefined;
     
     if (importedOrders?.index) {
-      const found = findOrderByCode(importedOrders.index, code);
+      const p = parseCode(code).campos;
+      const found = findOrderByCode(importedOrders.index, code)
+        ?? (p["Rastreio"] ? findOrderByCode(importedOrders.index, p["Rastreio"]) : null)
+        ?? (p["Nota Fiscal"] ? findOrderByCode(importedOrders.index, `NF:${p["Nota Fiscal"]}`) : null);
       if (found) {
         // Check for duplicate scan of same order
         const alreadyScanned = rows.some(r => r.matchedOrder?.barcode === found.barcode);
@@ -152,11 +155,17 @@ export function Scanner() {
     setImportProgress({ stage: "Lendo arquivo...", progress: 10 });
     
     try {
-      const text = await file.text();
-      setImportProgress({ stage: "Interpretando etiquetas ZPL...", progress: 30 });
-      
-      // Parse ZPL content
-      const result = parseZPL(text);
+      let result: ZPLParseResult;
+      if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+        setImportProgress({ stage: "Lendo etiquetas do PDF...", progress: 30 });
+        const { parsePdfLabels } = await import("@/lib/parse-pdf-labels");
+        const orders = await parsePdfLabels(file);
+        result = { orders, errors: orders.length ? [] : ["Nenhuma etiqueta encontrada no PDF"], warnings: [] };
+      } else {
+        const text = await file.text();
+        setImportProgress({ stage: "Interpretando etiquetas ZPL...", progress: 30 });
+        result = parseZPL(text);
+      }
       setImportProgress({ stage: "Criando índice de busca...", progress: 70 });
       
       // Create search index
